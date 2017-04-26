@@ -8,6 +8,7 @@ class ROLLOUT(object):
         self.lstm = lstm
         self.update_rate = update_rate
 
+
         self.num_emb = self.lstm.num_emb
         self.batch_size = self.lstm.batch_size
         self.emb_dim = self.lstm.emb_dim
@@ -78,7 +79,7 @@ class ROLLOUT(object):
     def get_reward(self, sess, input_x, rollout_num, cnn):
         rewards = []
         for i in range(rollout_num):
-            for given_num in range(1, 20):
+            for given_num in range(1, 64):
                 feed = {self.x: input_x, self.given_num: given_num}
                 outputs = sess.run([self.gen_x], feed)
                 generated_poem = outputs[0]  # batch_size x seq_length

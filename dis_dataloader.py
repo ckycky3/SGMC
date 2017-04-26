@@ -1,6 +1,6 @@
 import numpy as np
 from re import compile as _Re
-import cPickle
+import pickle
 
 
 def split_unicode_chrs(text):
@@ -10,7 +10,7 @@ def split_unicode_chrs(text):
 
 class Dis_dataloader():
     def __init__(self):
-        self.vocab_size = 5000
+        self.vocab_size = 68
 
     def load_data_and_labels(self, positive_file, negative_file):
         """
@@ -19,20 +19,27 @@ class Dis_dataloader():
         """
         positive_examples = []
         negative_examples = []
-        with open(positive_file)as fin:
-            for line in fin:
-                line = line.strip()
-                line = line.split()
-                parse_line = [int(x) for x in line]
-                positive_examples.append(parse_line)
+        # with open(positive_file)as fin:
+        #     for line in fin:
+        #         line = line.strip()
+        #         line = line.split()
+        #         parse_line = [int(x) for x in line]
+        #         positive_examples.append(parse_line)
 
-        with open(negative_file)as fin:
-            for line in fin:
-                line = line.strip()
-                line = line.split()
-                parse_line = [int(x) for x in line]
-                if len(parse_line) == 20:
-                    negative_examples.append(parse_line)
+        with open(positive_file, "rb") as output_file:
+            positive_examples = pickle.load(output_file)
+
+        # with open(negative_file)as fin:
+        #     for line in fin:
+        #         line = line.strip()
+        #         line = line.split()
+        #         parse_line = [int(x) for x in line]
+        #         if len(parse_line) == 20:
+        #             negative_examples.append(parse_line)
+
+        with open(negative_file, "rb") as output_file:
+            negative_examples = pickle.load(output_file)
+
 
         # Split by words
         x_text = positive_examples + negative_examples
@@ -55,7 +62,7 @@ class Dis_dataloader():
         shuffle_indices = np.random.permutation(np.arange(len(labels)))
         x_shuffled = sentences[shuffle_indices]
         y_shuffled = labels[shuffle_indices]
-        self.sequence_length = 20
+        self.sequence_length = 64
         return [x_shuffled, y_shuffled]
 
     def load_test_data(self, positive_file, test_file):

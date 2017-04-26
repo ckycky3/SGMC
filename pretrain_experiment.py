@@ -4,27 +4,29 @@ import tensorflow as tf
 import random
 from gen_dataloader import Gen_Data_loader, Likelihood_data_loader
 from target_lstm import TARGET_LSTM
-import cPickle
+import pickle
+import itertools
 
 #########################################################################################
 #  Generator  Hyper-parameters
 #########################################################################################
 EMB_DIM = 32
 HIDDEN_DIM = 32
-SEQ_LENGTH = 20
+SEQ_LENGTH = 64
 START_TOKEN = 0
 
-PRE_EPOCH_NUM = 350  # change the pre-train epoch here
+PRE_EPOCH_NUM = 50  # change the pre-train epoch here
 TRAIN_ITER = 1  # generator
 SEED = 88
-BATCH_SIZE = 64
+BATCH_SIZE = 16
 
 ##########################################################################################
-positive_file = 'save/real_data.txt'
+positive_file = 'save/midi_trans.pkl'
+# positive_file = 'save/real_data.txt'
 negative_file = 'target_generate/generator_sample.txt'
-eval_file = 'target_generate/eval_file.txt'
+eval_file = 'target_generate/midi_trans_eval.pkl'
 
-generated_num = 10000
+generated_num = 100
 
 
 class PoemGen(model.LSTM):
@@ -41,10 +43,14 @@ def generate_samples(sess, trainable_model, batch_size, generated_num, output_fi
     generated_samples = []
     for _ in range(int(generated_num / batch_size)):
         generated_samples.extend(trainable_model.generate(sess))
-    with open(output_file, 'w') as fout:
-        for poem in generated_samples:
-            buffer = ' '.join([str(x) for x in poem]) + '\n'
-            fout.write(buffer)
+
+    with open(output_file, "w") as fout:
+        pickle.dump(generated_samples, fout)
+
+    # with open(output_file, 'w') as fout:
+    #     for poem in generated_samples:
+    #         buffer = ' '.join([str(x) for x in poem]) + '\n'
+    #         fout.write(buffer)
 
 
 def target_loss(sess, target_lstm, data_loader):
@@ -72,19 +78,66 @@ def pre_train_epoch(sess, trainable_model, data_loader):
     return np.mean(supervised_g_losses)
 
 
+def initialize_parameters(inout_dim):
+
+    result_list = []
+    val = 32
+    layers = [[inout_dim, val],
+
+              [val, val],
+              [val, val],
+              [1, val],
+
+              [val, val],
+              [val, val],
+              [1, val],
+
+              [val, val],
+              [val, val],
+              [1, val],
+
+              [val, val],
+              [val, val],
+              [1, val],
+
+              [val, inout_dim],
+
+              [1, inout_dim]]
+
+    for arr_dim, layer_num in layers:
+        if arr_dim > 1:
+            tmp = np.random.random((arr_dim,layer_num)).astype(np.float32)
+        else:
+            tmp = np.random.random(layer_num,).astype(np.float32)
+
+
+        result_list.append(tmp)
+
+    result = np.array(result_list)
+
+    return result
+
+
+
+
 def main():
     random.seed(SEED)
     np.random.seed(SEED)
 
     assert START_TOKEN == 0
 
+    # load data (likelihood?)
     gen_data_loader = Gen_Data_loader(BATCH_SIZE)
     likelihood_data_loader = Likelihood_data_loader(BATCH_SIZE)
-    vocab_size = 5000
+    vocab_size = 68
 
+
+    # load generator with parameters
     generator = get_trainable_model(vocab_size)
-    target_params = cPickle.load(open('save/target_params.pkl'))
-    target_lstm = TARGET_LSTM(vocab_size, 64, 32, 32, 20, 0, target_params)
+    # target_params = cPickle.load(open('save/target_params.pkl'))
+    target_params = initialize_parameters(68)
+
+    target_lstm = TARGET_LSTM(vocab_size, BATCH_SIZE, EMB_DIM, HIDDEN_DIM, SEQ_LENGTH, START_TOKEN, target_params)
 
     config = tf.ConfigProto()
     # config.gpu_options.per_process_gpu_memory_fraction = 0.5
@@ -92,7 +145,10 @@ def main():
     sess = tf.Session(config=config)
     sess.run(tf.global_variables_initializer())
 
-    generate_samples(sess, target_lstm, 64, 10000, positive_file)
+    # generating synthetic data which constitute to  original data
+    # generate_samples(sess, target_lstm, 64, 100, positive_file)
+
+
     gen_data_loader.create_batches(positive_file)
 
     log = open('log/experiment-log.txt', 'w')
@@ -113,6 +169,7 @@ def main():
     generate_samples(sess, generator, BATCH_SIZE, generated_num, eval_file)
     likelihood_data_loader.create_batches(eval_file)
     test_loss = target_loss(sess, target_lstm, likelihood_data_loader)
+    print 'final pre-train epoch ', 'test_loss ', test_loss
     buffer = 'After supervised-training:' + ' ' + str(test_loss) + '\n'
     log.write(buffer)
 
@@ -120,4 +177,6 @@ def main():
 
 
 if __name__ == '__main__':
+    # initialize_parameters(68)
     main()
+

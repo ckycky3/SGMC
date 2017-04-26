@@ -3,6 +3,13 @@ from tensorflow.python.ops import tensor_array_ops, control_flow_ops
 
 
 class TARGET_LSTM(object):
+
+    def length(self, sequence):
+        used = tf.sign(tf.reduce_max(tf.abs(sequence), reduction_indices=2))
+        length = tf.reduce_sum(used, reduction_indices= 1)
+        length = tf.cast(length, tf.int32)
+        return length
+
     def __init__(self, num_emb, batch_size, emb_dim, hidden_dim,
                  sequence_length, start_token, params):
         self.num_emb = num_emb
@@ -14,6 +21,7 @@ class TARGET_LSTM(object):
         self.g_params = []
         self.temperature = 1.0
         self.params = params
+
 
         tf.set_random_seed(66)
 
